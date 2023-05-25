@@ -161,8 +161,7 @@ def coll_sentiment(coll, word="barnevern", return_score_only=False):
     coll = group_index_terms(coll)
 
     # Data import
-    pos = load_sentiment_terms(sentiment="Positive")
-    neg = load_sentiment_terms(sentiment="Negative")
+    pos, neg = load_norsentlex()
 
     positive_counts = count_matching_tokens(coll, pos)
     negative_counts = count_matching_tokens(coll, neg)
@@ -223,9 +222,12 @@ def score_sentiment(text, positive, negative):
     return sent_counts
 
 
-def count_and_score_target_words(corpus: dh.Corpus, word: str):
+def count_and_score_target_words(corpus: pd.DataFrame, word: str):
     """Add word frequency and sentiment score for ``word`` in the given ``corpus``."""
-    urnlist = corpus.corpus.urn.to_list()
+    if isinstance(corpus, dh.Corpus):
+        corpus = corpus.frame
+
+    urnlist = corpus.urn.to_list()
     limit = 60 * len(urnlist)
     docid_column = "dhlabid"
 
@@ -245,7 +247,7 @@ def count_and_score_target_words(corpus: dh.Corpus, word: str):
     )
     word_freq["sentimentscore"] = word_freq["positive"] - word_freq["negative"]
 
-    df = corpus.frame.merge(
+    df = corpus.merge(
         word_freq.drop(columns="conc"),
         how="inner",
         left_on=docid_column,
