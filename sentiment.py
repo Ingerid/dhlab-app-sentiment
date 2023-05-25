@@ -35,18 +35,25 @@ def load_sentiment_terms(fpath: str = None) -> pd.Series:
     return pd.read_csv(fpath, names=["terms"])
 
 
-def load_norsentlex() -> List[pd.Series]:
+def load_norsentlex(save_resources=False) -> List[pd.Series]:
     """Load the sentiment lexicons from ``ǸorsentLex``.
 
     - Github repo [norsentlex](https://github.com/ltgoslo/norsentlex)
     - [Lexicon information in neural sentiment analysis:
     a multi-task learning approach](https://aclanthology.org/W19-6119) (Barnes et al., NoDaLiDa 2019)
     """
-    fpath = "https://raw.githubusercontent.com/ltgoslo/norsentlex/master/Fullform/Fullform_{sentiment}_lexicon.txt"
-    pos, neg = [
-        load_sentiment_terms(fpath.format(sentiment=sent))
-        for sent in ("Positive", "Negative")
-    ]
+    def get_fpath(sentiment):
+        rawpath = f"https://raw.githubusercontent.com/ltgoslo/norsentlex/master/Fullform/Fullform_{sentiment}_lexicon.txt"
+        localpath = Path(f"{sentiment}_lexicon.csv")
+
+        return localpath if localpath.exists() else rawpath
+
+    pos = load_sentiment_terms(get_fpath("Positive"))
+    neg = load_sentiment_terms(get_fpath("Negative"))
+
+    if save_resources:
+        pos.to_csv("Positive_lexicon.csv", index=False)
+        neg.to_csv("Negative_lexicon.csv", index=False)
     return pos, neg
 
 
@@ -240,7 +247,7 @@ def count_and_score_target_words(corpus: pd.DataFrame, word: str):
         conc, how="inner", left_on=docid_column, right_on=docid_column
     )
 
-    pos, neg = load_norsentlex()
+    pos, neg = load_norsentlex(save_resources=False)
 
     word_freq[["positive", "negative"]] = word_freq.apply(
         lambda x: score_sentiment(x.conc, pos, neg), axis=1, result_type="expand"

@@ -169,8 +169,6 @@ def sentiment_analysis(word):
         st.session_state.corpus = load_data(word=word, limit=50)
     try:
         result = compute_sentiment_analysis(st.session_state.corpus, word)
-        figure = create_plot(result)
-        st.pyplot(figure)
         st.session_state.result = True
         return result
     except Exception as error:
@@ -193,8 +191,6 @@ if __name__ == "__main__":
     st.subheader("Tekstutvalg")
     corpus_selection()
 
-    st.session_state.result = False
-
     st.header("Analyser sentiment")
     with st.form(key='input_word'):
         word = st.text_input(
@@ -210,16 +206,20 @@ if __name__ == "__main__":
         sentiment_button = st.form_submit_button(label = "Kjør!")
     if sentiment_button:
         result = sentiment_analysis(word)
+        figure = create_plot(result)
+        st.pyplot(figure)
+
+        st.session_state.result = True
 
     if "result" in st.session_state:
         st.write("---")
-        filnavn = st.text_input("Filnavn for nedlasting", f"sentimentscore_{today}.xlsx")
-
-        if st.download_button(
+        filnavn = st.text_input(
+            "Filnavn for nedlasting",
+            f"sentimentscore_{today}.xlsx"
+        )
+        st.download_button(
             'Last ned data i excelformat',
             to_excel(result),
             filnavn,
             help = "Åpnes i Excel eller tilsvarende regnearkprogram."
-        ):
-            pass
-
+        )
