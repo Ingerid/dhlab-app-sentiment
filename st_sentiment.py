@@ -1,5 +1,6 @@
 import datetime
 from io import BytesIO
+import base64
 
 import pandas as pd
 import streamlit as st
@@ -156,24 +157,32 @@ def to_excel(df):
     return processed_data
 
 
+# ADAPTED FROM: https://discuss.streamlit.io/t/how-to-download-file-in-streamlit/1806
+@st.cache(suppress_st_warning=True, show_spinner=False)
+def get_table_download_link(content, link_content="XLSX", filename="corpus.xlsx"):
+    """Generates a link allowing the data in a given panda dataframe to be downloaded
+    in:  dataframe
+    out: href string
+    """
+    try:
+        b64 = base64.b64encode(content.encode()).decode()  # some strings <-> bytes conversions necessary here
+    except:
+        b64 = base64.b64encode(content).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">{link_content}</a>'
+    return href
+
+
 def create_plot(result):
     """Plot the result scores."""
     r = result[["year","positive", "negative", "sentimentscore"]]
     rgroup = r.groupby("year")[["sentimentscore", "positive", "negative"]].sum()
     return rgroup.plot().figure
 
-@st.cache_data
-def sentiment_analysis(word):
+
+@st.cache_data(persist=True, experimental_allow_widgets=True)
+def sentiment_analysis(corpus, word):
     """Compute the sentiment analysis score."""
-    if ("corpus" not in st.session_state):
-        st.session_state.corpus = load_data(word=word, limit=50)
-    try:
-        result = compute_sentiment_analysis(st.session_state.corpus, word)
-        st.session_state.result = True
-        return result
-    except Exception as error:
-        st.write("Last inn et korpus og prøv igjen.")
-        st.error(error)
+    return compute_sentiment_analysis(corpus, word)
 
 
 if __name__ == "__main__":
@@ -205,21 +214,26 @@ if __name__ == "__main__":
         )
         sentiment_button = st.form_submit_button(label = "Kjør!")
     if sentiment_button:
-        result = sentiment_analysis(word)
+        st.session_state.submitted = True
+
+    if ("corpus" not in st.session_state):
+        st.write("Last inn et korpus før du kjører analysen.")
+    if "submitted" in st.session_state and st.session_state.submitted:
+        result = sentiment_analysis(st.session_state.corpus, word)
+        st.session_state.result = True
+        st.write("Ferdig :rocket:")
+
+    if "result" in st.session_state and st.session_state.result:
         figure = create_plot(result)
         st.pyplot(figure)
-
-        st.session_state.result = True
-
-    if "result" in st.session_state:
         st.write("---")
         filnavn = st.text_input(
             "Filnavn for nedlasting",
             f"sentimentscore_{today}.xlsx"
         )
-        st.download_button(
+        if st.download_button(
             'Last ned data i excelformat',
             to_excel(result),
             filnavn,
-            help = "Åpnes i Excel eller tilsvarende regnearkprogram."
-        )
+            help = "Åpnes i Excel eller tilsvarende regnearkprogram."):
+           pass
